@@ -17,7 +17,7 @@ Astro club BITS Pilani's flight computer code
 
 1. GPS Readings (getCoordinates)
 2. BMP390 reading (getAltitude)
-3. IMU reading (getRollPitchYaw)
+3. IMU reading (getRollPitchYaw,getAcceleration)
 4. E32 communication (sendBytes function)
 5. Raspi communication (sendBytes, readBytes)
 6. Continuity Check (checkContinuity main, drogue, backup)
@@ -28,9 +28,9 @@ Astro club BITS Pilani's flight computer code
 
 ### Parts to Implement After Code Integration (Not Required in State Machine)
 
-1. sendTelemetryDataViaE32()
-2. sendDataToRaspi()
-3. storeDataFromArduinoToSDCardRaspi()
+1. packTelemetryDataE32() // function combines all data (which is decided to be sent) into a byte array
+2. packLogsForRaspi() // combines all data into byte array
+3. storeDataFromArduinoToSDCardRaspi() // unpacks data and stores on sd card
 4. storeCameraFootagetoSDCardRaspi()
 
 ### Code Structure
@@ -40,3 +40,6 @@ Individual components test code will be written in Arduino IDE as .ino
 State machine and onwards will be written in PlatformIO in VSCode
 
 Raspi code will be written in Python
+
+### State Machine
+
