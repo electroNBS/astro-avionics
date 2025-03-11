@@ -1,3 +1,5 @@
+#define gpaTX D0 
+#define gpaRX D1
 
 struct GPSData {
     double latitude;

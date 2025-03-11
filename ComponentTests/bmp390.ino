@@ -1,4 +1,5 @@
-
+#define bmpSDA A4 
+#define bmpSCL A5
 
 /*
 This function reads the BMP390 sensor and returns the altitude in meters.
