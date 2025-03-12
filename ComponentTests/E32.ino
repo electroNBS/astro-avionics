@@ -22,11 +22,13 @@ void sendMessage(byte message[], int length){
     // TOTO: Implement the actual function below
 }
 
+int check
+
 void loop(){
     // TOTO: Implement the actual loop below
-    Serial.println("Sending message");
+    Serissal.println("Sending message");
     byte message[] = {0x01, 0x02, 0x03};
     sendMessage(message, 3);
-    
+
     delay(1000);
 }
