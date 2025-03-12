@@ -1,6 +1,7 @@
 import subprocess
 import serial
 import time
+import sys
 
 def start_recording():
     subprocess.run(["bash", "/home/pi/start_recording.sh"])
@@ -8,21 +9,48 @@ def start_recording():
 def stop_recording():
     subprocess.run(["bash", "/home/pi/stop_recording.sh"])
 
-# Enable UART in /boot/config.txt
-# Startup sequence
+def write_log(data):
+    global last_packet_time
+    with open(LOG_FILE, "a") as file:
+        file.write(f"{time.strftime('%H%M%S')} - {data}\n")
+        file.flush()
 
-ard_status = False
+    last_packet_time = time.time()
+    ser.write(b'ACK\n')  # Send acknowledgment to Arduino
 
-# time.sleep(2)
-ser = serial.Serial('/dev/serial0', 9600, timeout=5)
+def check_failure():
+    if time.time() - last_packet_time > TIMEOUT:
+        print("ERROR: Arduino timed out! Switching to failure mode.")
+        return False
+    return True
 
-ser.write(b'PING\n')  
-response = ser.readline().decode().strip()
+LOG_FILE = time.strftime("arduino_%H%M%S.log")
+TIMEOUT = 20
 
-if response == "PONG":
-    ard_status = True
+ser = serial.Serial('/dev/serial0', 115200, timeout=1)
+ard_status = True
+last_packet_time = time.time()
+data = ""
 
-ser.close()
+# Normal mode
+start_recording()
 
-# If ard_status is true then start cameras, logging
-# Else go into failure mode and only beam telemetry back
+while ard_status:
+    if ser.in_waiting:
+        data = ser.readline().decode().strip()
+        if data:
+            write_log(data)
+
+    ard_status = check_failure()
+
+    if data == "STOPREC" or not ard_status:
+        stop_recording()
+    
+    if data == "EXIT":
+        sys.exit()
+
+    # Add drogue chute and main chute deployment code below
+
+    time.sleep(1)
+
+# Failure mode, arduino took longer than TIMEOUT

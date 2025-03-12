@@ -1,5 +1,8 @@
 #include <SoftwareSerial.h>
 
+bool rpiStatus;
+SoftwareSerial serial(6,7);
+
 bool piStatusCheck(SoftwareSerial &serial){
     unsigned long start = millis();
 
@@ -17,4 +20,13 @@ bool piStatusCheck(SoftwareSerial &serial){
     }
 
     return false;
+}
+
+void setup(){
+    serial.begin(9600);
+    rpiStatus = piStatusCheck(serial);
+}
+
+void loop(){
+    // add normal and failure code
 }
