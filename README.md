@@ -15,11 +15,11 @@ Astro club BITS Pilani's flight computer code
 
 ### Individual Components and Functions to Implement
 
-1. GPS Readings (getCoordinates)
-2. BMP390 reading (getAltitude)
-3. IMU reading (getRollPitchYaw,getAcceleration)
-4. E32 communication (sendBytes function)
-5. Raspi communication (sendBytes, readBytes)
+1. GPS Readings (getCoordinates, check alive)
+2. BMP390 reading (getAltitude, check alive)
+3. IMU reading (getRollPitchYaw,getAcceleration, check alive)
+4. E32 communication and check (sendBytes function, check alive)
+5. Raspi communication (sendBytes, readBytes, check alive)
 6. Continuity Check (checkContinuity main, drogue, backup)
 7. Trigger Ejection Charges (trigger main, drogue, backup)
 8. Trigger Ejection Charges (from Raspi) (trigger main, drogue, backup)
@@ -40,6 +40,24 @@ Individual components test code will be written in Arduino IDE as .ino
 State machine and onwards will be written in PlatformIO in VSCode
 
 Raspi code will be written in Python
-
+        `7
 ### State Machine
 
+State on arduino
+
+variables
+
+- is raspi alive
+- is e32 alive
+- is main ejection charge connected
+- is drouge ejection charge connected
+- is backup ejection charge connected
+- is imu working
+- is BMP390 working
+- is gps working
+- is altitute above flgiht mode height // 0 is bmp not working
+- is rocket tumbling
+- is peack reached
+- is rocket straight ( take average gyro readings over some time and if it is within set threshold of its launch value , then 1 if it is )
+
+- 
