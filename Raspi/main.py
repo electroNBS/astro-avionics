@@ -1,7 +1,16 @@
+import asyncio
+import aioserial
 import subprocess
-import serial
 import time
 import sys
+
+LOG_FILE = time.strftime("arduino_%H%M%S.log")
+TIMEOUT = 20
+SERIAL_PORT = "/dev/serial0"
+BAUD_RATE = 115200
+ard_status = True
+
+last_packet_time = time.time()
 
 def start_recording():
     subprocess.run(["bash", "/home/pi/start_recording.sh"])
@@ -14,43 +23,43 @@ def write_log(data):
     with open(LOG_FILE, "a") as file:
         file.write(f"{time.strftime('%H%M%S')} - {data}\n")
         file.flush()
-
-    last_packet_time = time.time()
-    ser.write(b'ACK\n')  # Send acknowledgment to Arduino
-
-def check_failure():
-    if time.time() - last_packet_time > TIMEOUT:
-        print("ERROR: Arduino timed out! Switching to failure mode.")
-        return False
-    return True
-
-LOG_FILE = time.strftime("arduino_%H%M%S.log")
-TIMEOUT = 20
-
-ser = serial.Serial('/dev/serial0', 115200, timeout=1)
-ard_status = True
-last_packet_time = time.time()
-data = ""
-
-# Normal mode
-start_recording()
-
-while ard_status:
-    if ser.in_waiting:
-        data = ser.readline().decode().strip()
-        if data:
-            write_log(data)
-
-    ard_status = check_failure()
-
-    if data == "STOPREC" or not ard_status:
-        stop_recording()
     
-    if data == "EXIT":
-        sys.exit()
+    last_packet_time = time.time()
 
-    # Add drogue chute and main chute deployment code below
+async def read_serial(aios):
+    global last_packet_time
+    global ard_status
+    while ard_status:
+        try:
+            data = await aios.readline_async()
+            if data:
+                data = data.decode().strip()
+                write_log(data)
+                # await aios.write_async(b'ACK\n')  # Send ACK to Arduino
+                
+                if data == "STOPREC":
+                    stop_recording()
+                elif data == "EXIT":
+                    sys.exit()
+        except Exception as e:
+            print(f"Serial read error: {e}")
+            await asyncio.sleep(0.5)
 
-    time.sleep(1)
+async def check_failure():
+    global last_packet_time
+    global ard_status
+    while ard_status:
+        if time.time() - last_packet_time > TIMEOUT:
+            print("ERROR: Arduino timed out! Switching to failure mode.")
+            stop_recording()
+            ard_status = False
+        await asyncio.sleep(1)  # Check every second
 
-# Failure mode, arduino took longer than TIMEOUT
+
+async def main():
+    start_recording()
+    aios = aioserial.AioSerial(port=SERIAL_PORT, baudrate=BAUD_RATE, timeout=1)
+    await asyncio.gather(read_serial(aios), check_failure()) # make sure this function returns if ard_status is false
+    # write failure code here
+
+asyncio.run(main())
