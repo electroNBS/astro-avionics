@@ -3,14 +3,36 @@ import aioserial
 import subprocess
 import time
 import sys
+import os
+import board
+import busio
+import adafruit_bmp390
+# pip install adafruit-circuitpython-bmp390
+# enable i2c and serial in raspi config
 
-LOG_FILE = time.strftime("arduino_%H%M%S.log")
+log_dir = os.path.expanduser("~/flightlogs")
+os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
+
+# constants
+LOG_FILE = os.path.join(log_dir, time.strftime("arduino_%H%M%S.log"))
 TIMEOUT = 20
 SERIAL_PORT = "/dev/serial0"
 BAUD_RATE = 115200
-ard_status = True
 
+# global variables
+ard_status = True
+ground_alt = 0.0
+current_alt = 0.0
+height = 0.0
 last_packet_time = time.time()
+
+# bmp init
+i2c = busio.I2C(board.SCL, board.SDA)
+bmp = adafruit_bmp390.BMP390_I2C(i2c, address=0x77) # install i2c tools and verify address with $ i2cdetect -y 1
+bmp.pressure_oversampling = 8
+bmp.temperature_oversampling = 2
+bmp.sea_level_pressure = 1007 # Set this before flight
+ground_alt = bmp.altitude
 
 def start_recording():
     subprocess.run(["bash", "/home/pi/start_recording.sh"])
@@ -23,7 +45,6 @@ def write_log(data):
     with open(LOG_FILE, "a") as file:
         file.write(f"{time.strftime('%H%M%S')} - {data}\n")
         file.flush()
-    
     last_packet_time = time.time()
 
 async def read_serial(aios):
@@ -35,14 +56,12 @@ async def read_serial(aios):
             if data:
                 data = data.decode().strip()
                 write_log(data)
-                # await aios.write_async(b'ACK\n')  # Send ACK to Arduino
-                
                 if data == "STOPREC":
                     stop_recording()
                 elif data == "EXIT":
                     sys.exit()
         except Exception as e:
-            print(f"Serial read error: {e}")
+            write_log(f"Serial read error: {e}")
             await asyncio.sleep(0.5)
 
 async def check_failure():
@@ -50,16 +69,63 @@ async def check_failure():
     global ard_status
     while ard_status:
         if time.time() - last_packet_time > TIMEOUT:
-            print("ERROR: Arduino timed out! Switching to failure mode.")
+            write_log("ERROR: Arduino timed out! Switching to failure mode.")
             stop_recording()
             ard_status = False
         await asyncio.sleep(1)  # Check every second
 
+async def update_alt():
+    global ground_alt
+    global current_alt
+    global height
+    while True:
+        current_alt = bmp.altitude
+        height = current_alt - ground_alt
+        write_log(f"Altitude= {current_alt}   Height= {height}")
+        await asyncio.sleep(0.2)
+
+async def failure_mode():
+    global height
+    for i in range(5):
+        # Add beeper code here to indicate failure
+        await asyncio.sleep(0.5)
+    while height < 200:
+        await asyncio.sleep(1)
+
+async def flight_mode():
+    global current_alt
+    previous_alt = current_alt
+    counter = 0
+    while True:
+        await asyncio.sleep(0.2)
+        if current_alt < previous_alt:
+            counter += 1
+        if counter > 2:
+            write_log("Descent detected! Deploying drogue chute.")
+            # Add drogue charges code here
+            break
+        previous_alt = current_alt
+        
+async def descent_mode():
+    global height
+    while True:
+        if height > 500:
+            await asyncio.sleep(0.5)
+            continue
+        write_log("500m reached, deploying main chute!")
+        # Add main chute charges code here
 
 async def main():
     start_recording()
     aios = aioserial.AioSerial(port=SERIAL_PORT, baudrate=BAUD_RATE, timeout=1)
+    # Add gps and comms code here without awaiting
     await asyncio.gather(read_serial(aios), check_failure()) # make sure this function returns if ard_status is false
-    # write failure code here
+    
+    # Failure mode
+    write_log("Entered failure mode.")
+    asyncio.create_task(update_alt())  # Add some case to stop this fn
+    await failure_mode()
+    await flight_mode()
+    await descent_mode()
 
 asyncio.run(main())
