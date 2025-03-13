@@ -21,12 +21,17 @@ SERIAL_PORT = "/dev/serial0"
 BAUD_RATE = 115200
 DROGUE_PIN = 27
 MAIN_PIN = 17
+DROGUE_VEL = -5 # This should be negative!
+MAIN_HEIGHT = 500
+FLIGHTMODE_ALT = 200
 
 # global variables
 ard_status = True
+vel_logging = False
 ground_alt = 0.0
 current_alt = 0.0
 height = 0.0
+velocity = 0.0
 last_packet_time = time.time()
 
 # GPIO init
@@ -38,25 +43,33 @@ GPIO.setup(MAIN_PIN, GPIO.OUT, initial=GPIO.LOW)
 i2c = busio.I2C(board.SCL, board.SDA)
 bmp = adafruit_bmp390.BMP390_I2C(i2c, address=0x77) # install i2c tools and verify address with $ i2cdetect -y 1
 bmp.pressure_oversampling = 8
-bmp.temperature_oversampling = 2
+bmp.temperature_oversampling = 4
 bmp.sea_level_pressure = 1007 # Set this before flight
 ground_alt = bmp.altitude
 
 def start_recording():
-    subprocess.run(["bash", "/home/pi/start_recording.sh"])
+    script_path = "/home/pi/start_recording.sh"
+    if os.path.exists(script_path):
+        subprocess.run(["bash", script_path])
+    else:
+        write_log("ERROR: start_recording.sh not found!")
 
 def stop_recording():
-    subprocess.run(["bash", "/home/pi/stop_recording.sh"])
+    script_path = "/home/pi/stop_recording.sh"
+    if os.path.exists(script_path):
+        subprocess.run(["bash", script_path])
+    else:
+        write_log("ERROR: stop_recording.sh not found!")
 
-def deploy_drogue():
+async def deploy_drogue():
     GPIO.output(DROGUE_PIN, GPIO.HIGH)
-    time.sleep(2)
+    await asyncio.sleep(2)
     GPIO.output(DROGUE_PIN, GPIO.LOW)
     write_log("Drogue chute deployed!")
 
-def deploy_main():
+async def deploy_main():
     GPIO.output(MAIN_PIN, GPIO.HIGH)
-    time.sleep(2)
+    await asyncio.sleep(2)
     GPIO.output(MAIN_PIN, GPIO.LOW)
     write_log("Main chute deployed!")
 
@@ -68,25 +81,26 @@ def write_log(data):
     last_packet_time = time.time()
 
 async def read_serial(aios):
-    global last_packet_time
-    global ard_status
+    global last_packet_time, ard_status
     while ard_status:
         try:
             data = await aios.readline_async()
-            if data:
-                data = data.decode().strip()
-                write_log(data)
-                if data == "STOPREC":
-                    stop_recording()
-                elif data == "EXIT":
-                    sys.exit()
+            if not data:
+                continue
+
+            data = data.decode().strip()
+            write_log(data)
+            if data == "STOPREC":
+                stop_recording()
+            elif data == "EXIT":
+                sys.exit()
+
         except Exception as e:
             write_log(f"Serial read error: {e}")
             await asyncio.sleep(0.5)
 
 async def check_failure():
-    global last_packet_time
-    global ard_status
+    global last_packet_time, ard_status, TIMEOUT
     while ard_status:
         if time.time() - last_packet_time > TIMEOUT:
             write_log("ERROR: Arduino timed out! Switching to failure mode.")
@@ -94,57 +108,72 @@ async def check_failure():
             ard_status = False
         await asyncio.sleep(1)  # Check every second
 
-async def update_alt():
-    global ground_alt
-    global current_alt
-    global height
-    while True:
+async def update_vel():
+    global ground_alt, current_alt, height, velocity, vel_logging
+    previous_alt = bmp.altitude
+    previous_time = time.time()
+    counter = 0
+    vel_logging = True
+    while vel_logging:
         current_alt = bmp.altitude
         height = current_alt - ground_alt
-        write_log(f"Altitude= {current_alt}   Height= {height}")
-        await asyncio.sleep(0.2)
+        current_time = time.time()
+
+        delta_alt = current_alt - previous_alt
+        delta_time = current_time - previous_time
+        if delta_time > 0:
+            velocity = delta_alt / delta_time
+        previous_alt = current_alt
+        previous_time = current_time
+
+        # Write to log every second
+        counter += 1
+        if counter > 10:
+            write_log(f"Altitude= {current_alt:.2f}  Height= {height:.2f}  Velocity= {velocity:.2f}")
+            counter = 0
+        await asyncio.sleep(0.1)
 
 async def failure_mode():
-    global height
+    global height, FLIGHTMODE_ALT
     for i in range(5):
         # Add beeper code here to indicate failure
         await asyncio.sleep(0.25)
-    while height < 200:
-        await asyncio.sleep(1)
+    while height < FLIGHTMODE_ALT:
+        await asyncio.sleep(0.5)
 
 async def flight_mode():
-    global current_alt
-    previous_alt = current_alt
-    counter = 0
-    while True:
-        await asyncio.sleep(0.2)
-        if current_alt < previous_alt:
-            counter += 1
-        if counter > 3:
-            write_log("Descent detected! Deploying drogue chute.")
-            deploy_drogue()
-            break
-        previous_alt = current_alt
+    global velocity, DROGUE_VEL
+    while velocity > DROGUE_VEL:
+        await asyncio.sleep(0.1)
+    write_log(f"Detected descent velocity greater than {DROGUE_VEL}m/s! Deploying drogue.")
+    await deploy_drogue()
         
 async def descent_mode():
-    global height
-    while height>500:
+    global height, MAIN_HEIGHT
+    while height > MAIN_HEIGHT:
         await asyncio.sleep(0.5)
     write_log("500m reached, deploying main chute!")
-    deploy_main()
+    await deploy_main()
 
+def cleanup():
+    global vel_logging
+    vel_logging = False
+    GPIO.cleanup()
+    await aios.close()
+    write_log("Cleaned up serial and GPIO")
 
 async def main():
     start_recording()
     aios = aioserial.AioSerial(port=SERIAL_PORT, baudrate=BAUD_RATE, timeout=1)
-    # Add gps and comms code here without awaiting
     await asyncio.gather(read_serial(aios), check_failure()) # make sure this function returns if ard_status is false
     
     # Failure mode
     write_log("Entered failure mode.")
-    asyncio.create_task(update_alt())  # Add some case to stop this fn
+    asyncio.create_task(update_vel())  # Add some case to stop this fn
     await failure_mode()
     await flight_mode()
     await descent_mode()
+    # Add safety cases like if velocity is greater than threshold deploy main anyways
+    cleanup()
 
 asyncio.run(main())

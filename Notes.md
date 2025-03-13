@@ -65,3 +65,9 @@ Check Continuity once every 300-400 cycles
 
 
 To deploy ejection charges When certain conditions meet set respective relay pins high
+
+---
+
+## Mission Requirements
+1. Check if all modules are working
+2. 
