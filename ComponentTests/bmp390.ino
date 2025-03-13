@@ -4,7 +4,7 @@
 /*
 This function reads the BMP390 sensor and returns the altitude in meters.
 */
-int getAltitude()
+float getAltitude()
 {
     // This is a placeholder function that returns a fixed value
     // TOTO: Implement the actual function
