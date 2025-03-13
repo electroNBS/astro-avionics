@@ -119,6 +119,18 @@ void bmpTask(void *pvParameters)
   }
 
 }
+
+void rasPiTask(void *pvParameters)
+{
+  // wait for boot time
+  while (millis() < BOOT_TIME)
+  {
+    ;
+  }
+  // establish connection and set connection status to 1 if successful
+
+}
+
 /**
  * @brief Arduino setup function.
  *
