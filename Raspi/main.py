@@ -115,12 +115,14 @@ async def update_vel():
     write_log(f"Started velocity loggging. Ground altitude: {GROUND_ALT}")
     previous_alt = bmp.altitude
     previous_time = time.monotonic()
+    delta_alt = 0.0
+    delta_time = 1.0
     counter = 0
     vel_logging = True
     while vel_logging:
         current_alt = bmp.altitude
-        height = current_alt - GROUND_ALT
         current_time = time.monotonic()
+        height = current_alt - GROUND_ALT
 
         delta_alt = current_alt - previous_alt
         delta_time = current_time - previous_time
