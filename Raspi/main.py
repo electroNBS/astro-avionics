@@ -108,7 +108,7 @@ async def failure_mode():
     global height
     for i in range(5):
         # Add beeper code here to indicate failure
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.25)
     while height < 200:
         await asyncio.sleep(1)
 
@@ -128,12 +128,10 @@ async def flight_mode():
         
 async def descent_mode():
     global height
-    while True:
-        if height > 500:
-            await asyncio.sleep(0.5)
-            continue
-        write_log("500m reached, deploying main chute!")
-        deploy_main()
+    while height>500:
+        await asyncio.sleep(0.5)
+    write_log("500m reached, deploying main chute!")
+    deploy_main()
 
 
 async def main():
