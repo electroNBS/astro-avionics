@@ -17,7 +17,7 @@ Astro club BITS Pilani's flight computer code
 
 1. GPS Readings (getCoordinates, check alive)
 2. BMP390 reading (getAltitude, check alive)
-3. IMU reading (getRollPitchYaw,getAcceleration, check alive)
+3. IMU reading (getRollPitchYaw,getAcceleration, check alive, checkIsTipOver)
 4. E32 communication and check (sendBytes function, check alive)
 5. Raspi communication (sendBytes, readBytes, check alive)
 6. Continuity Check (checkContinuity main, drogue, backup)
@@ -40,7 +40,14 @@ Individual components test code will be written in Arduino IDE as .ino
 State machine and onwards will be written in PlatformIO in VSCode
 
 Raspi code will be written in Python
-        `7
+
+### Instructions to Open PlatformIO project
+
+1. Install PlatformIO extentions on arduino
+2. Restart VSCode
+3. Click on its symbol -> pick symbol , open the arduino folder
+4. click on build symbol
+
 ### State Machine
 
 State on arduino
@@ -59,5 +66,3 @@ variables
 - is rocket tumbling
 - is peack reached
 - is rocket straight ( take average gyro readings over some time and if it is within set threshold of its launch value , then 1 if it is )
-
-- 
