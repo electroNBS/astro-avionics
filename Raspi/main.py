@@ -29,6 +29,7 @@ SERIAL_PORT = "/dev/serial0"
 BAUD_RATE = 115200
 DROGUE_PIN = 27
 MAIN_PIN = 17
+BACKUP_PIN = 22
 STATUS = 25
 TEL = 24
 MAIN_VEL = -40 # This should be negative!
@@ -50,7 +51,6 @@ current_alt = 0.0
 height = 0.0
 velocity = 0.0
 last_packet_time = time.monotonic()
-
 
 def start_recording():
     script_path = "/home/pi/start_recording.sh"
@@ -109,11 +109,12 @@ async def read_serial(aios):
 
 async def check_failure():
     global last_packet_time, ard_status
-    while ard_status:
+    while True:
         if time.monotonic() - last_packet_time > TIMEOUT:
             await write_log("ERROR: Arduino timed out! Switching to failure mode.")
             stop_recording()
             ard_status = False
+            return
         await asyncio.sleep(1)  # Check every second
 
 async def update_vel():
@@ -139,7 +140,7 @@ async def update_vel():
 
         # Write to log every second
         counter += 1
-        if counter > 100:
+        if counter > 50:
             await write_log(f"Altitude= {current_alt:.2f}  Height= {height:.2f}  Velocity= {velocity:.2f}")
             counter = 0
         await asyncio.sleep(0.005)
@@ -168,6 +169,16 @@ async def descent_mode():
     await write_log(f"{MAIN_HEIGHT}m reached, deploying main chute!")
     await deploy_main()
 
+async def landing_mode():
+    counter = 0
+    while counter < 10:
+        if abs(velocity) < 0.5:
+            counter += 1
+        else:
+            counter = 0
+        await asyncio.sleep(0.5)
+    write_log("Landing detected!")
+
 async def cleanup(aios):
     global vel_logging
     vel_logging = False
@@ -175,7 +186,7 @@ async def cleanup(aios):
     GPIO.output(TEL, GPIO.LOW)
     GPIO.cleanup()
     await aios.close()
-    await write_log("Cleaned up serial and GPIO, and stopped velocity logging.")
+    await write_log("Cleaned up serial, GPIO and stopped velocity logging. Exiting!")
 
 async def main():
     GPIO.output(STATUS, GPIO.HIGH)
@@ -190,8 +201,9 @@ async def main():
     vel_task = asyncio.create_task(update_vel())
     await failure_mode()
     await flight_mode()
-    await descent_mode()   # Add safety cases like if velocity is greater than threshold deploy main anyways
-    await cleanup(aios)    # If something needs to be done below MAIN_HEIGHT, add it above this
+    await descent_mode()
+    await landing_mode()
+    await cleanup(aios)    
     await vel_task
 
 if __name__ == "__main__":

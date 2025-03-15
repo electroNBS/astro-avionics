@@ -68,6 +68,37 @@ To deploy ejection charges When certain conditions meet set respective relay pin
 
 ---
 
-## Mission Requirements
-1. Check if all modules are working
-2. 
+## Flight regimes
+
+Use a flight state variable and a switch case in loop to run the correct functions for each flight regime
+
+ex:
+
+enum State = {BOOT, READY, FLIGHT, DESCENT, LANDING, FAILURE}
+
+State flightstate = BOOT
+
+void loop(){
+    switch BOOT:
+    switch READY:
+    .....
+}
+
+## Sensor states
+
+Use a state variable(integer) to get and set states of individual sensors
+
+#define RPI     (1 << 0)
+#define GPS     (1 << 1)
+#define LORA    (1 << 2)
+#define BMP     (1 << 3)
+#define IMU     (1 << 4)
+
+int sensorStatus = 0         // This is a global variable
+
+// To manipulate and check statuses
+
+sensorStatus |= RPI          // Set status to true 
+sensorStatus &= ~LORA        // Set status to false
+sensorStatus ^= BMP          // Toggle status
+(sensorStatus & IMU) != 0    // Get if a status is true
