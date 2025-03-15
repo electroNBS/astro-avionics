@@ -2,23 +2,16 @@
 
 Astro club BITS Pilani's flight computer code
 
----
+## Arduino progress
 
-### Arduino progress
+- [ ] Make individual .cpp and .h files for each sensor and task
+- [ ] Include them in main and finalize the logic
+- [ ] Debugging and testing
 
-[ ] - Make individual .cpp and .h files for each sensor and task
+## Raspi progress
 
-[ ] - Include them in main and finalize the logic
-
-[ ] - Debugging and testing
-
-### Raspi progress
-
-[x] - Finalize the logic and implement it in python
-
-[ ] - Debugging and testing
-
----
+- [x] Finalize the logic and implement it in Python
+- [ ] Debugging and testing
 
 ## Flight Computer Code Plan
 
@@ -36,7 +29,7 @@ Astro club BITS Pilani's flight computer code
 Use a flight state variable and a switch case in loop to run the correct functions for each flight regime
 
 ex:
-
+```
 enum State = {BOOT, READY, FLIGHT, DESCENT, LANDING, FAILURE}
 
 State flightstate = BOOT
@@ -46,11 +39,12 @@ void loop(){
     switch READY:
     .....
 }
+```
 
 ### Sensor states
 
 Use a state variable(integer) to get and set states of individual sensors
-
+```
 #define RPI     (1 << 0)
 #define GPS     (1 << 1)
 #define LORA    (1 << 2)
@@ -65,6 +59,7 @@ sensorStatus |= RPI          // Set status to true
 sensorStatus &= ~LORA        // Set status to false
 sensorStatus ^= BMP          // Toggle status
 (sensorStatus & IMU) != 0    // Get if a status is true
+```
 
 ### Individual Components and Functions to Implement
 
