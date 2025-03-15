@@ -2,6 +2,24 @@
 
 Astro club BITS Pilani's flight computer code
 
+---
+
+### Arduino progress
+
+[ ] - Make individual .cpp and .h files for each sensor and task
+
+[ ] - Include them in main and finalize the logic
+
+[ ] - Debugging and testing
+
+### Raspi progress
+
+[x] - Finalize the logic and implement it in python
+
+[ ] - Debugging and testing
+
+---
+
 ## Flight Computer Code Plan
 
 1. Write out the cases and conditions of what happens when
@@ -12,6 +30,41 @@ Astro club BITS Pilani's flight computer code
 6. Implement the state machine using state tables with placeholder function blocks for individual components
 7. Integrate the test code for individual components from step 3 to implement the placeholder functions
 8. Test the code with everything
+
+### Flight regimes
+
+Use a flight state variable and a switch case in loop to run the correct functions for each flight regime
+
+ex:
+
+enum State = {BOOT, READY, FLIGHT, DESCENT, LANDING, FAILURE}
+
+State flightstate = BOOT
+
+void loop(){
+    switch BOOT:
+    switch READY:
+    .....
+}
+
+### Sensor states
+
+Use a state variable(integer) to get and set states of individual sensors
+
+#define RPI     (1 << 0)
+#define GPS     (1 << 1)
+#define LORA    (1 << 2)
+#define BMP     (1 << 3)
+#define IMU     (1 << 4)
+
+int sensorStatus = 0         // This is a global variable
+
+// To manipulate and check statuses
+
+sensorStatus |= RPI          // Set status to true 
+sensorStatus &= ~LORA        // Set status to false
+sensorStatus ^= BMP          // Toggle status
+(sensorStatus & IMU) != 0    // Get if a status is true
 
 ### Individual Components and Functions to Implement
 
@@ -47,22 +100,3 @@ Raspi code will be written in Python
 2. Restart VSCode
 3. Click on its symbol -> pick symbol , open the arduino folder
 4. click on build symbol
-
-### State Machine
-
-State on arduino
-
-variables
-
-- is raspi alive
-- is e32 alive
-- is main ejection charge connected
-- is drouge ejection charge connected
-- is backup ejection charge connected
-- is imu working
-- is BMP390 working
-- is gps working
-- is altitute above flgiht mode height // 0 is bmp not working
-- is rocket tumbling
-- is peack reached
-- is rocket straight ( take average gyro readings over some time and if it is within set threshold of its launch value , then 1 if it is )
