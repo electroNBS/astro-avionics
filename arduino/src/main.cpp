@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "E32.h"
 
 // define pins
 #define BuzzerPin A1
@@ -13,10 +14,11 @@ int connectionStatus = 0; // 0 if fail , 1 if success
 float currentAltitude = 0;
 float baseAltitude = 0;
 float bmpVelocity = 0; // velocity of the rocket calculated by bmp altitude readings
-int bmpWorking = 0; // 0 if fail , 1 if success
+int bmpWorking = 0;    // 0 if fail , 1 if success
 
 // define task handle
 TaskHandle_t buzzerTask;
+E32Module e32; // Create an instance of the class
 
 // define buzzer task
 void buzzerTask(void *pvParameters)
@@ -68,7 +70,8 @@ void buzzerTask(void *pvParameters)
   }
 }
 
-float getAltitude(){
+float getAltitude()
+{
   // get the altitude from the bmp sensor
   // TODO: implement this function
   return 0;
@@ -97,13 +100,13 @@ void bmpTask(void *pvParameters)
     // wait for the boot time to pass
     ;
   }
-  
+
   unsigned long t1 = millis();
   unsigned long t2 = millis();
   // set the start time
   while (1)
   {
-    // get the current time 
+    // get the current time
     t2 = millis();
     // calculate the velocity of the rocket
     float reading = getAltitude();
@@ -113,11 +116,10 @@ void bmpTask(void *pvParameters)
 
     // update the time
     t1 = t2;
-    
+
     // wait for 10ms
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
-
 }
 
 void rasPiTask(void *pvParameters)
@@ -128,7 +130,6 @@ void rasPiTask(void *pvParameters)
     ;
   }
   // establish connection and set connection status to 1 if successful
-
 }
 
 /**
@@ -148,7 +149,7 @@ void rasPiTask(void *pvParameters)
 void setup()
 {
   Serial.begin(115200);
-
+  e32.begin();
 
   // create tasks
   /*
@@ -159,12 +160,15 @@ void setup()
    * @param NULL The task handle (not used in this case).
    */
   xTaskCreate(buzzerTask, "buzzerTask", 1024, NULL, 1, NULL); // create buzzer task
-  xTaskCreate(bmpTask, "bmpTask", 2048, NULL, 1, NULL);       // create bmp task 
+  xTaskCreate(bmpTask, "bmpTask", 2048, NULL, 1, NULL);       // create bmp task
   // NOTE: increase the stack size if required
   // NOTE: increase the priority if required
-
 }
 
 void loop()
 {
+  Serial.println("Sending message...");
+  byte message[] = {0x01, 0x02, 0x03};
+  e32.sendMessage(message, sizeof(message));
+  delay(1000);
 }
