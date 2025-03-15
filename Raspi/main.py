@@ -8,7 +8,7 @@ import board
 import busio
 import adafruit_bmp390
 import RPi.GPIO as GPIO
-# pip install adafruit-circuitpython-bmp390
+# pip install adafruit-circuitpython-bmp390 aioserial Rpi.GPIO
 # enable i2c and serial in raspi config
 
 # define log directory
@@ -29,7 +29,6 @@ SERIAL_PORT = "/dev/serial0"
 BAUD_RATE = 115200
 DROGUE_PIN = 27
 MAIN_PIN = 17
-BACKUP_PIN = 22
 STATUS = 25
 TEL = 24
 MAIN_VEL = -40 # This should be negative!
@@ -99,6 +98,8 @@ async def read_serial(aios):
             await write_log(data)
             if data == "STOPREC":
                 stop_recording()
+            elif data == "PING":
+                await aios.write_async(b"PONG\n")
             elif data == "EXIT":
                 await cleanup(aios)
                 sys.exit()
