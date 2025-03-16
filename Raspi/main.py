@@ -54,6 +54,8 @@ current_alt = 0.0
 height = 0.0
 velocity = 0.0
 last_packet_time = time.monotonic()
+previous_alt = bmp.altitude
+previous_time = time.monotonic()
 
 async def flight_log(data):
     global flight_buffer
@@ -151,27 +153,27 @@ async def check_failure():
         await asyncio.sleep(1)  # Check every second
 
 async def update_vel():
-    global current_alt, height, velocity, vel_logging
+    global previous_alt, previous_time
     await flight_log(f"Started velocity loggging. Ground altitude: {GROUND_ALT}")
     previous_alt = bmp.altitude
     previous_time = time.monotonic()
-    delta_alt = 0.0
-    delta_time = 1.0
     while vel_logging:
-        current_alt = bmp.altitude
-        current_time = time.monotonic()
-        height = current_alt - GROUND_ALT
-
-        delta_alt = current_alt - previous_alt
-        delta_time = current_time - previous_time
-        if delta_time > 0:
-            velocity = delta_alt / delta_time
-        previous_alt = current_alt
-        previous_time = current_time
-
+        await asyncio.to_thread(velocity_calc)
         await vel_log(f"Altitude= {current_alt:.2f}  Height= {height:.2f}  Velocity= {velocity:.2f}")
         await asyncio.sleep(0.005)
     await flight_log("Stopping velocity logging.")
+
+def velocity_calc():
+    global previous_alt, previous_time, height, current_alt, velocity
+    current_alt = bmp.altitude
+    height = current_alt - GROUND_ALT
+    delta_alt = current_alt - previous_alt
+    current_time = time.monotonic()
+    delta_time = current_time - previous_time
+    if delta_time > 0:
+        velocity = delta_alt / delta_time
+    previous_alt = current_alt
+    previous_time = current_time
 
 async def failure_mode():
     while height < FLIGHTMODE_ALT:
@@ -232,7 +234,7 @@ async def main():
     await flight_mode()
     await descent_mode()
     await landing_mode()
-    await cleanup(aios)    
+    await cleanup(aios)  
 
 if __name__ == "__main__":
     asyncio.run(main())
