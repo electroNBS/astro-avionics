@@ -2,7 +2,6 @@
 #define E32_H
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
 
 #define e32RX A3
 #define e32TX A2
@@ -12,12 +11,12 @@
 class E32Module
 {
 public:
-    E32Module(); // Constructor
-    void begin(long baudRate = 9600);
-    void sendMessage(byte message[], int length);
+    E32Module(HardwareSerial &serial); // Constructor
+    void begin(long baudRate);         // Initialize serial communication
+    void sendMessage(String message);  // Send a string message
 
 private:
-    SoftwareSerial e32Serial;
+    HardwareSerial &e32Serial; // Reference to hardware serial
 };
 
 #endif

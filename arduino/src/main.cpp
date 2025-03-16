@@ -1,5 +1,6 @@
 #include <Arduino.h>
-#include "E32.h"
+#include "../lib/E32.h"
+#include "../lib/testEjectionCharges.h"
 
 // define pins
 #define BuzzerPin A1
@@ -7,6 +8,11 @@
 // define Constants
 #define BOOT_TIME 15000    // time to wait for both systems to boot up
 #define CONNECT_TIME 15000 // time to wait for the connection to be established
+
+// Define serial ports
+HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
+HardwareSerial SerialRaspi(2); // Use UART2 (A6 RX, A7 TX)
+E32Module e32(SerialE32);
 
 // define Gobal variables
 unsigned long startTime = 0;
@@ -18,7 +24,6 @@ int bmpWorking = 0;    // 0 if fail , 1 if success
 
 // define task handle
 TaskHandle_t buzzerTask;
-E32Module e32; // Create an instance of the class
 
 // define buzzer task
 void buzzerTask(void *pvParameters)
@@ -149,7 +154,9 @@ void rasPiTask(void *pvParameters)
 void setup()
 {
   Serial.begin(115200);
-  e32.begin();
+  SerialE32.begin(9600, SERIAL_8N1, A3, A2);     // E32 module
+  SerialRaspi.begin(115200, SERIAL_8N1, A6, A7); // Raspberry Pi
+  setupRelays();
 
   // create tasks
   /*
@@ -168,7 +175,14 @@ void setup()
 void loop()
 {
   Serial.println("Sending message...");
-  byte message[] = {0x01, 0x02, 0x03};
-  e32.sendMessage(message, sizeof(message));
+  String message = "hello";
+  e32.sendMessage(message);
+  triggerRelay(relayMain);
+  delay(1000); // Small delay before next relay signal
+
+  triggerRelay(relayDrogue);
+  delay(1000);
+
+  triggerRelay(relayBackup);
   delay(1000);
 }

@@ -1,6 +1,6 @@
 #include "E32.h"
 
-E32Module::E32Module() : e32Serial(e32TX, e32RX) {}
+E32Module::E32Module(HardwareSerial &serial) : e32Serial(serial) {}
 
 void E32Module::begin(long baudRate) {
     Serial.begin(115200);
@@ -13,6 +13,14 @@ void E32Module::begin(long baudRate) {
     digitalWrite(e32M1, LOW);
 }
 
-void E32Module::sendMessage(byte message[], int length) {
-    e32Serial.write(message, length);
+void E32Module::sendMessage(String message) {
+    int length = message.length();  // Get length of the string
+    byte byteArray[length + 1];     // Create a byte array (+1 for null termination)
+    
+    message.getBytes(byteArray, length + 1); // Convert String to byte array
+
+    Serial.print("Broadcasting: ");
+    //Serial.println(message);  // Debugging output
+
+    e32Serial.write(byteArray, length); 
 }
