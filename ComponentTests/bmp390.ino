@@ -40,6 +40,7 @@ void setup()
     // setup bmp sensor
     if (!bmp.begin_I2C()) { // Initialize BMP390 over I2C
         Serial.println("Could not find a valid BMP390 sensor, check wiring!");
+        //makes the prog enter an infinite loop, stops execution if sensor is faulty
         while (1);
     }
     

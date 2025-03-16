@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include "E32.h"
 #include "testEjectionCharges.h"
+#include "bmp.h"
+
+#define BMP_SDA A4
+#define BMP_SCL A5
+BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 
 // define pins
 #define BuzzerPin A1
@@ -157,6 +162,26 @@ void setup()
   SerialE32.begin(9600, SERIAL_8N1, A3, A2);     // E32 module
   SerialRaspi.begin(115200, SERIAL_8N1, A6, A7); // Raspberry Pi
   setupRelays();
+  if (!bmpSensor.begin())
+  {
+    // TODO
+    // switch to getting altitude data from imu readings
+  }
+  else
+  {
+    // if the sensor is working, set the base altitude to the current altitude
+    baseAltitude = getAltitude();
+    // TODO : can take average of 10 readings every second to get the base altitude more accurately
+  }
+  while (millis() < BOOT_TIME)
+  {
+    // wait for the boot time to pass
+    ;
+  }
+
+  unsigned long t1 = millis();
+  unsigned long t2 = millis();
+  // set the start time
 
   // create tasks
   /*
@@ -185,4 +210,22 @@ void loop()
 
   triggerRelay(relayBackup);
   delay(1000);
+
+  while (1)
+  {
+    // get the current time
+    t2 = millis();
+    // calculate the velocity of the rocket
+    float reading = getAltitude();
+    bmpVelocity = (reading - baseAltitude) / (t2 - t1);
+    // get the current altitude every 10 ms
+    currentAltitude = reading;
+
+    // update the time
+    t1 = t2;
+    Serial.print("Altitude: ");
+    Serial.print(currentAltitude - baseAltitude);
+    Serial.println(" meters");
+    delay(10);
+  }
 }
