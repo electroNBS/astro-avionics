@@ -13,6 +13,8 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 #define RaspiRX A6
 #define E32RX A3
 #define E32TX A2
+#define GPSRX D1
+#define GPSTX D0
 
 // define Constants
 #define BOOT_TIME 15000    // time to wait for both systems to boot up
@@ -21,6 +23,7 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 // Define serial ports
 HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
 HardwareSerial SerialRaspi(2); // Use UART2 (A6 RX, A7 TX)
+HardwareSerial SerialGPS(3); // Use UART 3 (D1 RX, D0 TX)
 E32Module e32(SerialE32);
 
 
@@ -47,7 +50,7 @@ enum State {
   DROUGE,
   PARACHUTE,
   RECOVERY,
-  EMMERGENCY
+  EMERGENCY
 };
 
 State state = BOOT;
@@ -79,7 +82,10 @@ void loop() {
     SerialRaspi.begin(115200, SERIAL_8N1, RaspiRX, RaspiTX); 
 
     // begin communication with the e32
-    SerialE32.begin(115200, SERIAL_8N1, A2, A3);
+    SerialE32.begin(115200, SERIAL_8N1, E32RX, E32TX);
+
+    // begin communication with GPS
+    SerialGPS.begin(115200, SERIAL_8N1, GPSRX, GPSTX)
 
 
     // connect to raspberry pi
