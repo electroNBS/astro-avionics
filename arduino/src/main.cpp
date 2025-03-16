@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "../lib/E32.h"
-#include "../lib/testEjectionCharges.h"
+#include "E32.h"
+#include "testEjectionCharges.h"
 
 // define pins
 #define BuzzerPin A1
@@ -23,7 +23,7 @@ float bmpVelocity = 0; // velocity of the rocket calculated by bmp altitude read
 int bmpWorking = 0;    // 0 if fail , 1 if success
 
 // define task handle
-TaskHandle_t buzzerTask;
+TaskHandle_t buzzerTaskHandle;
 
 // define buzzer task
 void buzzerTask(void *pvParameters)
@@ -166,8 +166,8 @@ void setup()
    * @param 1 The priority of the task.
    * @param NULL The task handle (not used in this case).
    */
-  xTaskCreate(buzzerTask, "buzzerTask", 1024, NULL, 1, NULL); // create buzzer task
-  xTaskCreate(bmpTask, "bmpTask", 2048, NULL, 1, NULL);       // create bmp task
+  xTaskCreate(buzzerTask, "buzzerTask", 1024, NULL, 1, &buzzerTaskHandle); // create buzzer task
+  xTaskCreate(bmpTask, "bmpTask", 2048, NULL, 1, NULL);                    // create bmp task
   // NOTE: increase the stack size if required
   // NOTE: increase the priority if required
 }
