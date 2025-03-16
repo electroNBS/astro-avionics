@@ -173,14 +173,7 @@ void setup()
     baseAltitude = getAltitude();
     // TODO : can take average of 10 readings every second to get the base altitude more accurately
   }
-  while (millis() < BOOT_TIME)
-  {
-    // wait for the boot time to pass
-    ;
-  }
-
-  unsigned long t1 = millis();
-  unsigned long t2 = millis();
+ 
   // set the start time
 
   // create tasks
@@ -210,7 +203,14 @@ void loop()
 
   triggerRelay(relayBackup);
   delay(1000);
+  while (millis() < BOOT_TIME)
+  {
+    // wait for the boot time to pass
+    ;
+  }
 
+  unsigned long t1 = millis();
+  unsigned long t2 = millis();
   while (1)
   {
     // get the current time
