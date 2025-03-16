@@ -1,5 +1,5 @@
 #include "E32.h"
-
+#include <Arduino.h>
 E32Module::E32Module(HardwareSerial &serial) : e32Serial(serial) {}
 
 void E32Module::begin(long baudRate) {
