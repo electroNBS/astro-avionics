@@ -102,6 +102,8 @@ async def read_serial(aios):
             elif data == "EXIT":
                 await cleanup(aios)
                 sys.exit()
+            elif data == "PING":
+                await aios.write_async("PONG\n".encode())
 
         except Exception as e:
             await write_log(f"Serial read error: {e}")

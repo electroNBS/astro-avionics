@@ -9,6 +9,10 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 
 // define pins
 #define BuzzerPin A1
+#define RaspiTX A7
+#define RaspiRX A6
+#define E32RX A3
+#define E32TX A2
 
 // define Constants
 #define BOOT_TIME 15000    // time to wait for both systems to boot up
@@ -48,7 +52,8 @@ enum State {
 
 State state = BOOT;
 
-
+// state variables
+float groundAltitude = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -60,8 +65,8 @@ void setup() {
 
 void loop() {
   while(state == BOOT) {
-    // beep buzzer for 200ms every second for next 15 seconds
-    for(int i = 0; i < 15; i++) {
+    // beep buzzer for 200ms every second till the end of the boot time
+    for(int i = 0; i < BOOT_TIME; i+=1000) {
       digitalWrite(BuzzerPin, HIGH);
       delay(200);
       digitalWrite(BuzzerPin, LOW);
@@ -70,10 +75,52 @@ void loop() {
     state = CONN;
   }
   while (state == CONN){
-    // talk to the raspberry pi
-    // if the raspberry pi is alive
-    // set the RPI_h bit in the status register
-    // else
-    // clear the RPI_h bit in the status register
+    // begin communication with the raspberry pi
+    SerialRaspi.begin(115200, SERIAL_8N1, RaspiRX, RaspiTX); 
+
+    // begin communication with the e32
+    SerialE32.begin(115200, SERIAL_8N1, A2, A3);
+
+
+    // connect to raspberry pi
+    unsigned long start = millis();
+    while (millis() - start < CONNECT_TIME ||  (!(status & RPI_h) && !(status & LORA_h))){
+      // send ping , and wait for pong
+      SerialRaspi.println("PING");
+      if(SerialRaspi.available()){
+        String response = SerialRaspi.readStringUntil('\n');
+        if(response == "PONG"){
+          status |= RPI_h;
+          break;
+        }
+      }
+
+      // send ping to lora module
+      e32.sendMessage("PING");
+    }
+    // beep buzzer long for 2 seconds
+    digitalWrite(BuzzerPin, HIGH);
+    delay(2000);
+    digitalWrite(BuzzerPin, LOW);
+    state  = CALIB;
   }
+  while (state == CALIB){
+    // initialize the sensors and calibrate them
+    if(bmpSensor.begin()){
+      status |= BMP_h;
+    }
+    for (int i = 0; i < 10; i++){
+      groundAltitude += bmpSensor.getAltitude();
+      delay(10);
+    }
+    groundAltitude /= 10;
+
+    SerialRaspi.println("GROUND_ALTITUDE:" + String(groundAltitude));
+    
+    // TODO : calibrate the IMU
+
+    
+    
+  }
+
 }
