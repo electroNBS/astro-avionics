@@ -6,9 +6,9 @@ import sys
 import os
 import board
 import busio
-import adafruit_bmp390
+import adafruit_bmp3xx
 import RPi.GPIO as GPIO
-# pip install adafruit-circuitpython-bmp390 aioserial Rpi.GPIO
+# pip install adafruit-circuitpython-bmp3xx aioserial Rpi.GPIO
 # enable i2c and serial in raspi config
 
 # define log directory
@@ -17,7 +17,7 @@ os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
 
 # bmp init
 i2c = busio.I2C(board.SCL, board.SDA)
-bmp = adafruit_bmp390.BMP390_I2C(i2c, address=0x77) # install i2c tools and verify address with $ i2cdetect -y 1
+bmp = adafruit_bmp3xx.BMP3xx_I2C(i2c, address=0x77) # install i2c tools and verify address with $ i2cdetect -y 1
 #bmp.pressure_oversampling = 8
 #bmp.temperature_oversampling = 4
 bmp.sea_level_pressure = 1007 # Set this before flight!
@@ -96,14 +96,16 @@ async def read_serial(aios):
 
             data = data.decode().strip()
             await write_log(data)
-            if data == "STOPREC":
-                stop_recording()
-            elif data == "PING":
-                await aios.write_async(b"PONG\n")
-            elif data == "EXIT":
-                await cleanup(aios)
-                sys.exit()
 
+            match data:
+                case "STOPREC":
+                    stop_recording()
+                case "PING":
+                    await aios.write_async(b"PONG\n")
+                case "EXIT":
+                    await cleanup(aios)
+                    sys.exit()
+           
         except Exception as e:
             await write_log(f"Serial read error: {e}")
             await asyncio.sleep(0.5)
