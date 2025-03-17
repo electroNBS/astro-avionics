@@ -1,6 +1,10 @@
 #include "bmp.h"
 
 #include <Arduino.h>
+#include <math.h>
+#include <Wire.h>
+
+#define seaLevelPressure 101325 // Standard sea-level pressure in Pascals
 
 BMPSensor::BMPSensor(int sda, int scl) : sdaPin(sda), sclPin(scl) {}
 
@@ -18,11 +22,11 @@ bool BMPSensor::begin()
     }
 
     // oversampling to reduce noise and improve accuracy
-    bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
-    bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
+    // bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
+    // bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
 
-    // filtering to reduce noise
-    bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
+    // // filtering to reduce noise
+    // bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
     return true;
 }
 
@@ -38,8 +42,6 @@ float BMPSensor::getAltitude()
     float temperature = bmp.temperature; // Temperature in Celsius
 
     // Convert pressure to altitude using the barometric formula
-    float seaLevelPressure = 101325; // Standard sea-level pressure in Pascals
-
     // using the standard barometric formula h = (T0/L)(1-(P/P0)^(RL/gM))
     //  T0 is sea level temp, L is temp. lapse rate, P0 is sea level pressure, R is gas const,
     //  M is molar mass of air
