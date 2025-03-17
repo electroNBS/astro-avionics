@@ -1,5 +1,5 @@
 #include "bmp.h"
-
+#include "bmp3.h"
 #include <Arduino.h>
 #include <math.h>
 #include <Wire.h>
@@ -11,11 +11,13 @@ BMPSensor::BMPSensor(int sda, int scl) : sdaPin(sda), sclPin(scl) {}
 bool BMPSensor::begin()
 {
     // start serial port at 115200 bps:
-    Serial.begin(115200);
+    Serial.begin(9600);
+    pinMode(10,OUTPUT);
+    digitalWrite(10,HIGH);
     Wire.begin(sdaPin, sclPin); // Start I2C with defined pins
 
     // setup bmp sensor
-    if (!bmp.begin_I2C())
+    if (!bmp.begin_I2C(119))
     { // Initialize BMP390 over I2C
         Serial.println("Could not find a valid BMP390 sensor, check wiring!");
         return false;
