@@ -1,7 +1,8 @@
 #include <Arduino.h>
 #include "E32.h"
 #include "testEjectionCharges.h"
-#include "./bmp.h"
+#include "bmp.h"
+#include "imu.h"
 
 #define BMP_SDA A4
 #define BMP_SCL A5
@@ -13,6 +14,8 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 #define RaspiRX A6
 #define E32RX A3
 #define E32TX A2
+#define GPSRX D1
+#define GPSTX D0
 
 // define Constants
 #define BOOT_TIME 15000    // time to wait for both systems to boot up
@@ -21,6 +24,7 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 // Define serial ports
 HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
 HardwareSerial SerialRaspi(2); // Use UART2 (A6 RX, A7 TX)
+HardwareSerial SerialGPS(3); //Use UART3 (D0 TX, D1 RX)
 E32Module e32(SerialE32);
 
 
@@ -99,7 +103,7 @@ void loop() {
     SerialE32.begin(115200, SERIAL_8N1, E32RX, E32TX);
 
     // begin communication with GPS
-    SerialGPS.begin(115200, SERIAL_8N1, GPSRX, GPSTX)
+    SerialGPS.begin(115200, SERIAL_8N1, GPSRX, GPSTX);
 
 
     // connect to raspberry pi
@@ -149,7 +153,7 @@ void loop() {
 
     state = IDLE;
   }
-  while (state = IDLE) {
+  while (state == IDLE) {
     // read the data from the sensors
     Data data;
     data.bmpAltitude = bmpSensor.getAltitude();
@@ -159,12 +163,7 @@ void loop() {
     SerialRaspi.println(packDATA(data));
     // send 
     // check for commands from the raspberry pi
-    if(SerialRaspi.available()){
-      String command = SerialRaspi.readStringUntil('\n');
-      if(command == "LAUNCH"){
-        state = FLIGHT;
-      }
-    }
+    
   }
 
 }
