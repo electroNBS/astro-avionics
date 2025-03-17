@@ -3,6 +3,7 @@
 
 #include <Wire.h>
 #include <Adafruit_BMP3XX.h>
+#include "bmp3.h"
 
 class BMPSensor
 {
