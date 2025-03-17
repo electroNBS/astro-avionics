@@ -13,8 +13,6 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 #define RaspiRX A6
 #define E32RX A3
 #define E32TX A2
-#define GPSRX D1
-#define GPSTX D0
 
 // define Constants
 #define BOOT_TIME 15000    // time to wait for both systems to boot up
@@ -23,7 +21,6 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 // Define serial ports
 HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
 HardwareSerial SerialRaspi(2); // Use UART2 (A6 RX, A7 TX)
-HardwareSerial SerialGPS(3); // Use UART 3 (D1 RX, D0 TX)
 E32Module e32(SerialE32);
 
 
@@ -50,13 +47,30 @@ enum State {
   DROUGE,
   PARACHUTE,
   RECOVERY,
-  EMERGENCY
 };
 
 State state = BOOT;
 
 // state variables
 float groundAltitude = 0;
+
+// full data struct
+struct Data {
+  float bmpAltitude;
+  float imuAltitude;
+  float pressure;
+  float latitude;
+  float longitude;
+  float accel_x;
+  float accel_y;
+  float accel_z;
+  float vel_bmp;
+  float vel_imu;
+};
+
+String packDATA(Data data){
+  return "DATA:" + String(data.bmpAltitude) + "," + String(data.imuAltitude) + "," + String(data.pressure) + "," + String(data.latitude) + "," + String(data.longitude) + "," + String(data.accel_x) + "," + String(data.accel_y) + "," + String(data.accel_z) + "," + String(data.vel_bmp) + "," + String(data.vel_imu);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -103,6 +117,13 @@ void loop() {
 
       // send ping to lora module
       e32.sendMessage("PING");
+      if(SerialE32.available()){
+        String response = SerialE32.readStringUntil('\n');
+        if(response == "PONG"){
+          status |= LORA_h;
+          break;
+        }
+      }
     }
     // beep buzzer long for 2 seconds
     digitalWrite(BuzzerPin, HIGH);
@@ -124,9 +145,26 @@ void loop() {
     SerialRaspi.println("GROUND_ALTITUDE:" + String(groundAltitude));
     
     // TODO : calibrate the IMU
+    status |= IMU_h;
 
-    
-    
+    state = IDLE;
+  }
+  while (state = IDLE) {
+    // read the data from the sensors
+    Data data;
+    data.bmpAltitude = bmpSensor.getAltitude();
+    // TODO : read the data from the IMU
+    // TODO : read the data from the GPS
+    // send the data to the raspberry pi
+    SerialRaspi.println(packDATA(data));
+    // send 
+    // check for commands from the raspberry pi
+    if(SerialRaspi.available()){
+      String command = SerialRaspi.readStringUntil('\n');
+      if(command == "LAUNCH"){
+        state = FLIGHT;
+      }
+    }
   }
 
 }
