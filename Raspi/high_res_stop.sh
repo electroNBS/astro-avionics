@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PID_FILE="/tmp/recording.pid"
+PID_FILE="/tmp/highresrecording.pid"
 
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")
