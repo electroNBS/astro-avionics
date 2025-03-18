@@ -204,6 +204,23 @@ int checkTipOver(float ax,float ay , float az){
    count++; // increment count
 }
 
+Data updateDataWithoutGPS(){
+  Data data;
+  data.time = millis();
+  data.bmpAltitude = bmpSensor.getAltitude();
+  data.pressure = bmpSensor.getPressure();
+  data.imuAltitude = getHeightIMU();
+  IMUReading reading_i = readIMU();
+  data.accel_x = reading_i.accel_x;
+  data.accel_y = reading_i.accel_y;
+  data.accel_z = reading_i.accel_z;
+  data.vel_imu = getVelocityIMU();
+  data.vel_bmp = bmpSensor.getVelocity();
+  checkAllEjectionChargeContinuity();
+  data.statusReg = status;
+  return data;
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -287,20 +304,8 @@ void loop() {
   }
   while (state == IDLE) {
     // read the data from the sensors
-    Data data;
-    data.time = millis();
-    data.bmpAltitude = bmpSensor.getAltitude();
-    data.pressure = bmpSensor.getPressure();
-    data.imuAltitude = getHeightIMU();
-    IMUReading reading_i = readIMU();
-    data.accel_x = reading_i.accel_x;
-    data.accel_y = reading_i.accel_y;
-    data.accel_z = reading_i.accel_z;
-    data.vel_imu = getVelocityIMU();
-    data.vel_bmp = bmpSensor.getVelocity();
-    checkAllEjectionChargeContinuity();
-    data.statusReg = status;
-    // TODO : read the data from the GPS
+    Data data = updateDataWithoutGPS();
+    
     
     // pack data
     String packed_data = packDATA(data);
@@ -319,20 +324,7 @@ void loop() {
   while(state == FLIGHT){
     // update Data 
     // read the data from the sensors
-    Data data;
-    data.time = millis();
-    data.bmpAltitude = bmpSensor.getAltitude();
-    data.pressure = bmpSensor.getPressure();
-    data.imuAltitude = getHeightIMU();
-    IMUReading reading_i = readIMU();
-    data.accel_x = reading_i.accel_x;
-    data.accel_y = reading_i.accel_y;
-    data.accel_z = reading_i.accel_z;
-    data.vel_imu = getVelocityIMU();
-    data.vel_bmp = bmpSensor.getVelocity();
-    checkAllEjectionChargeContinuity();
-    data.statusReg = status;
-    // TODO : read the data from the GPS
+    Data data = updateDataWithoutGPS();
     
     // pack data
     String packed_data = packDATA(data);
@@ -341,7 +333,8 @@ void loop() {
     // send the data to Telemetry 
     e32.sendMessage(packed_data);
     // TODO : if imu not working , do other thing to enter drouge mode
-    if(checkTipOver(data.accel_x,data.accel_y,data.accel_z)){
+    // TODO : do other checks
+    if(data.vel_bmp <1 ||checkTipOver(data.accel_x,data.accel_y,data.accel_z) || data.vel_imu <1){
       status |= TIP_OVER;
       timeof_tip_over = millis();
       // send tip over message to raspi
@@ -355,8 +348,25 @@ void loop() {
   }
   while (state == DROUGE)
   {
-    // wait for half second after tip over , and deoply drouge.
+    // wait for half second after tip over , and deploy drouge.
+    if (millis()-timeof_tip_over > 500){
+      triggerDrogueEjectionCharges();
+      delay(100); // wait for 100ms and check if deployment was success
+      int status_d = checkDrogueEjectionCharges();
+      if (!status_d){
+        // drouge deoplyment is confirmed
+        status |= ECrd_h; // update ejection charge drouge deployment to 1
+        status &= ~ECd_h; // update ejection charge drouge continuity to 0
+        SerialRaspi.println("DROUGE Deployed");
+        e32.sendMessage("DROUGE Deployed");
+        setState(PARACHUTE);
+      }
+    }
    
+  }
+  while(state == PARACHUTE){
+    // we send all data , turn on gps , and wait for height to reach below 500m , and deploy parachute , if it does not deploy we try backup
+    
   }
   
 
