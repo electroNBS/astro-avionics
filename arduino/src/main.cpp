@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "E32.h"
-#include "testEjectionCharges.h"
+#include "triggerEjectionCharges.h"
+#include "checkEjectionCharges.h"
 #include "bmp.h"
 #include "imu.h"
 
@@ -151,6 +152,7 @@ void loop() {
     
     // TODO : calibrate the IMU
     status |= IMU_h;
+    calibrateIMU();
 
     state = IDLE;
   }
@@ -158,6 +160,13 @@ void loop() {
     // read the data from the sensors
     Data data;
     data.bmpAltitude = bmpSensor.getAltitude();
+    data.pressure = bmpSensor.getPressure();
+    data.imuAltitude = getHeightIMU();
+    data.accel_x = readIMU().accel_x;
+    data.accel_y = readIMU().accel_y;
+    data.accel_z = readIMU().accel_z;
+    data.vel_imu = getVelocityIMU();
+    data.vel_bmp = bmpSensor.getVelocity();
     // TODO : read the data from the IMU
     // TODO : read the data from the GPS
     // send the data to the raspberry pi

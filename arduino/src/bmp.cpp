@@ -51,3 +51,34 @@ float BMPSensor::getAltitude()
 
     return altitude;
 }
+
+float BMPSensor::getVelocity()
+{
+    unsigned long currentTime = millis(); // Get current time
+    float currentAltitude = getAltitude(); // Get current altitude
+    float deltaTime = (currentTime - prevTime) / 1000.0; // Convert to seconds
+    float velocity = 0; // Default velocity
+
+    if (deltaTime > 0) // Avoid division by zero
+    {
+        velocity = (currentAltitude - prevAltitude) / deltaTime;
+    }
+
+    // Update previous values
+    prevAltitude = currentAltitude;
+    prevTime = currentTime;
+
+    return velocity;
+}
+
+float BMPSensor::getPressure()
+{
+    if (!bmp.performReading())
+    {
+        Serial.println("Faild to read from BMP390 sensor!");
+        return -1; // Return -1 in case of failure
+    }
+
+    float pressure = bmp.pressure;       // Pressure in Pascals
+    return pressure;
+}

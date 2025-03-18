@@ -5,6 +5,9 @@ Adafruit_ICM20649 icm;
 // Calibration variables
 float accelBiasX = 0, accelBiasY = 0, accelBiasZ = 0;
 float gyroBiasX = 0, gyroBiasY = 0, gyroBiasZ = 0;
+float velocityY = 0;
+float height = 0;
+unsigned long prevTime = 0;
 
 void calibrateIMU(int samples)
 {
@@ -37,7 +40,7 @@ void calibrateIMU(int samples)
     gyroBiasY = gySum / samples;
     gyroBiasZ = gzSum / samples;
 
-    Serial.println("Calibration Complete!");
+    Serial.println("IMU Calibration Complete!");
 }
 
 IMUReading readIMU()
@@ -46,10 +49,9 @@ IMUReading readIMU()
     icm.getEvent(&accel, &gyro, &temp);
 
     IMUReading reading;
-    reading.acceleration = sqrt(pow(accel.acceleration.x - accelBiasX, 2) +
-                                pow(accel.acceleration.y - accelBiasY, 2) +
-                                pow(accel.acceleration.z - accelBiasZ, 2));
-
+    reading.accel_x = accel.acceleration.x - accelBiasX;
+    reading.accel_y = accel.acceleration.y - accelBiasY;
+    reading.accel_z = accel.acceleration.z - accelBiasZ;
     reading.roll = atan2(accel.acceleration.y - accelBiasY, accel.acceleration.z - accelBiasZ) * 180 / PI;
     reading.pitch = atan2(-(accel.acceleration.x - accelBiasX),
                           sqrt(pow(accel.acceleration.y - accelBiasY, 2) + pow(accel.acceleration.z - accelBiasZ, 2))) *
@@ -60,3 +62,36 @@ IMUReading readIMU()
     return reading;
 }
 
+float getVelocityIMU()
+{
+    unsigned long currentTime = millis();
+    float dt = (currentTime - prevTime) / 1000.0; // Convert to seconds
+    prevTime = currentTime;
+
+    sensors_event_t accel, gyro, temp;
+    icm.getEvent(&accel, &gyro, &temp);
+
+    float accelY = accel.acceleration.y - accelBiasY; // Remove bias
+    
+    //REMOVE NOISE???
+
+    velocityY += accelY * dt; // Integrate acceleration to get velocity
+    return velocityY;
+}
+
+float getHeightIMU(){
+    unsigned long currentTime = millis();
+    float dt = (currentTime - prevTime) / 1000.0; // Convert to seconds
+    prevTime = currentTime;
+
+    sensors_event_t accel, gyro, temp;
+    icm.getEvent(&accel, &gyro, &temp);
+
+    float accelY = accel.acceleration.y - accelBiasY; // Remove bias
+    
+    //REMOVE NOISE???
+
+    velocityY += accelY * dt; // Integrate acceleration to get velocity
+    height += velocityY * dt; // Integrate velocity to get height
+    return height;
+}
