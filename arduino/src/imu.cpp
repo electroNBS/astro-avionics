@@ -1,4 +1,4 @@
-#include "IMU.h"
+#include "imu.h"
 
 Adafruit_ICM20649 icm;
 

@@ -109,7 +109,7 @@ void loop() {
 
     // connect to raspberry pi
     unsigned long start = millis();
-    // this loop runs while the time is less than connect time , and the raspberry pi and lora module are not connected
+    // this loop runs while the time is less than connect time , or  the raspberry pi and lora module are not connected
     while (millis() - start < CONNECT_TIME ||  (!(status & RPI_h) || !(status & LORA_h))){
       // send ping , and wait for pong
       SerialRaspi.println("PING");
