@@ -4,6 +4,7 @@
 #include "checkEjectionCharges.h"
 #include "bmp.h"
 #include "imu.h"
+#include "buzzer.h"
 
 #define BMP_SDA A4
 #define BMP_SCL A5
@@ -123,13 +124,6 @@ void loop() {
 
       // send ping to lora module
       e32.sendMessage("PING");
-      if(SerialE32.available()){
-        String response = SerialE32.readStringUntil('\n');
-        if(response == "PONG"){
-          status |= LORA_h;
-          break;
-        }
-      }
     }
     // beep buzzer long for 2 seconds
     digitalWrite(BuzzerPin, HIGH);
@@ -148,6 +142,8 @@ void loop() {
       status |= IMU_h;
     }
     
+    // play calibration start tone
+    playCalibrationStartTone(); // takes 1 second
     for (int i = 0; i < 10; i++){
       groundAltitude += bmpSensor.getAltitude();
       delay(10);
@@ -156,9 +152,11 @@ void loop() {
 
     SerialRaspi.println("GROUND_ALTITUDE:" + String(groundAltitude));
     
-    // TODO : calibrate the IMU
-    status |= IMU_h;
-    calibrateIMU();
+    
+    // IMU will take 500 samples to calibrate , each 5ms , total 2.5 seconds
+    calibrateIMU(500); 
+    // play a tone to indicate that the calibration is done
+    playCalibrationStartTone(); // takes 1 second
 
     state = IDLE;
   }
