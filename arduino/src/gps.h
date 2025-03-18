@@ -8,6 +8,6 @@ struct GPSData
     float alt,vel,dir;
 };
 
-GPSData getData();
+GPSData readGPSData();
 
 String packGPSDATA(GPSData data);

@@ -5,7 +5,7 @@ void setupGPS(){
     // may be called multiple time , execute only once;
 }
 
-GPSData getData(){
+GPSData readGPSData(){
     // TODO implement 
     GPSData data;
     return data;

@@ -386,25 +386,25 @@ void loop() {
       int status_d = checkMainEjectionCharges();
       if (!status_d){
         // main deoplyment is confirmed
-        status |= ECrm_h; // update ejection charge drouge deployment to 1
-        status &= ~ECm_h; // update ejection charge drouge continuity to 0
-        SerialRaspi.println("MAIN Parachute Deployed");
-        e32.sendMessage("MAIN parachue Deployed");
+        status |= ECrm_h; // update ejection charge main deployment to 1
+        status &= ~ECm_h; // update ejection charge main continuity to 0
+        SerialRaspi.println("MAIN Parachute Deployed, Enter Recovery");
+        e32.sendMessage("MAIN parachue Deployed, Enter Recovery");
         setState(RECOVERY);
       }
       else {
         SerialRaspi.println("MAIN Parachute Deploy FAILED , trying backup ");
         e32.sendMessage("MAIN parachue Deploy FAILED , trying backup");
         // try backup
-        triggerMainEjectionCharges();
+        triggerBackupEjectionCharges();
         delay(100); // wait for 100ms and check if deployment was success
-        int status_d = checkMainEjectionCharges();
+        int status_d = checkBackupEjectionCharges();
         if (!status_d){
-          // main deoplyment is confirmed
-          status |= ECrm_h; // update ejection charge drouge deployment to 1
-          status &= ~ECm_h; // update ejection charge drouge continuity to 0
-          SerialRaspi.println("BACKUP Parachute Deployed");
-          e32.sendMessage("BACUKUP parachue Deployed");
+          // backup deoplyment is confirmed
+          status |= ECrb_h; // update ejection charge backup deployment to 1
+          status &= ~ECb_h; // update ejection charge backup continuity to 0
+          SerialRaspi.println("BACKUP Parachute Deployed, Enter Recovery");
+          e32.sendMessage("BACUKUP parachue Deployed, Enter Recovery");
           setState(RECOVERY);
         }
         else {
@@ -412,14 +412,20 @@ void loop() {
         }
       }
     }
+    // read gps 
+    GPSData gps_d = readGPSData();
 
-    // send data
      // pack data
-     String packed_data = packDATA(data);
+     String packed_data = packDATA(data) + packGPSDATA(gps_d);
      // send the data to the raspberry pi
      SerialRaspi.println(packed_data);
      // send the data to Telemetry 
      e32.sendMessage(packed_data);
+  }
+  while (state== RECOVERY)
+  {
+    
+    // we keep sending data , 
   }
   
 
