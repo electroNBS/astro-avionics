@@ -139,9 +139,15 @@ void loop() {
   }
   while (state == CALIB){
     // initialize the sensors and calibrate them
+    // setup the bmp sensor
     if(bmpSensor.begin()){
       status |= BMP_h;
     }
+    // setup the imu
+    if (setupIMU()){
+      status |= IMU_h;
+    }
+    
     for (int i = 0; i < 10; i++){
       groundAltitude += bmpSensor.getAltitude();
       delay(10);

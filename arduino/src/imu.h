@@ -17,6 +17,7 @@ struct IMUReading {
 };
 
 // Function prototypes
+int setupIMU(); // Returns 1 if setup is successful, 0 otherwise
 void calibrateIMU(int samples = 500);
 IMUReading readIMU();
 float getVelocityIMU();

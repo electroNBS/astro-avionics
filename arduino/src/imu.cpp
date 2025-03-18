@@ -9,6 +9,19 @@ float velocityY = 0;
 float height = 0;
 unsigned long prevTime = 0;
 
+// return 1 if setup is successful, 0 otherwise
+int setupIMU(){
+    if (!icm.begin_I2C()) {
+        Serial.println("Failed to find ICM20649 chip");
+        return 0;
+    }
+
+    Serial.println("ICM20649 initialized.");
+    icm.setAccelRange(ICM20649_ACCEL_RANGE_30_G);
+    icm.setGyroRange(ICM20649_GYRO_RANGE_4000_DPS);
+    return 1;
+}
+
 void calibrateIMU(int samples)
 {
     Serial.println("Calibrating... Keep the IMU steady!");
