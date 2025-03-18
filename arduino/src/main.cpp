@@ -3,6 +3,7 @@
 #include "triggerEjectionCharges.h"
 #include "checkEjectionCharges.h"
 #include "bmp.h"
+#include "gps.h"
 #include "imu.h"
 #include "buzzer.h"
 
@@ -22,6 +23,7 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 // define Constants
 #define BOOT_TIME 15000    // time to wait for both systems to boot up
 #define CONNECT_TIME 15000 // time to wait for the connection to be established
+#define SAFE_PARACHUTE_VEL 2 // safe velocity below which we can deoply parachute
 
 // Define serial ports
 HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
@@ -125,14 +127,12 @@ State state = BOOT;
 float groundAltitude = 0;
 unsigned long timeof_tip_over = 0;
 
-// full data struct
+// flight data struct
 struct Data {
   unsigned long time;
   float bmpAltitude;
   float imuAltitude;
   float pressure;
-  float latitude;
-  float longitude;
   float accel_x;
   float accel_y;
   float accel_z;
@@ -141,12 +141,16 @@ struct Data {
   uint16_t statusReg;
 };
 
+
+
+
+
 String packDATA(Data data){
   String binaryStatus = "";
   for (int i = 15; i >= 0; i--) {
     binaryStatus += String((data.statusReg >> i) & 1);
   }
-  return "DATA:" + String(data.bmpAltitude) + "," + String(data.imuAltitude) + "," + String(data.pressure) + "," + String(data.latitude) + "," + String(data.longitude) + "," + String(data.accel_x) + "," + String(data.accel_y) + "," + String(data.accel_z) + "," + String(data.vel_bmp) + "," + String(data.vel_imu) + "," + binaryStatus;
+  return "DATA:" + String(data.bmpAltitude) + "," + String(data.imuAltitude) + "," + String(data.pressure) + ","  + String(data.accel_x) + "," + String(data.accel_y) + "," + String(data.accel_z) + "," + String(data.vel_bmp) + "," + String(data.vel_imu) + "," + binaryStatus;
 }
 
 // checks all ejection charge continuity and updates status
@@ -361,12 +365,61 @@ void loop() {
         e32.sendMessage("DROUGE Deployed");
         setState(PARACHUTE);
       }
+      else {
+        // pray
+      }
+    }
+    // return out of drouge state to parachute if drouge is not deployed in few seconds 
+    if (millis()-timeof_tip_over > 5000){
+      SerialRaspi.println("TIMEOUT of DROUGE , Entering parachute mode");
+      e32.sendMessage("TIMEOUT of DROUGE , Entering parachute mode");
     }
    
   }
   while(state == PARACHUTE){
     // we send all data , turn on gps , and wait for height to reach below 500m , and deploy parachute , if it does not deploy we try backup
-    
+    Data data = updateDataWithoutGPS();
+    if (data.bmpAltitude < 500 && data.vel_imu < SAFE_PARACHUTE_VEL){
+      // we try to deoply parachute
+      triggerMainEjectionCharges();
+      delay(100); // wait for 100ms and check if deployment was success
+      int status_d = checkMainEjectionCharges();
+      if (!status_d){
+        // main deoplyment is confirmed
+        status |= ECrm_h; // update ejection charge drouge deployment to 1
+        status &= ~ECm_h; // update ejection charge drouge continuity to 0
+        SerialRaspi.println("MAIN Parachute Deployed");
+        e32.sendMessage("MAIN parachue Deployed");
+        setState(RECOVERY);
+      }
+      else {
+        SerialRaspi.println("MAIN Parachute Deploy FAILED , trying backup ");
+        e32.sendMessage("MAIN parachue Deploy FAILED , trying backup");
+        // try backup
+        triggerMainEjectionCharges();
+        delay(100); // wait for 100ms and check if deployment was success
+        int status_d = checkMainEjectionCharges();
+        if (!status_d){
+          // main deoplyment is confirmed
+          status |= ECrm_h; // update ejection charge drouge deployment to 1
+          status &= ~ECm_h; // update ejection charge drouge continuity to 0
+          SerialRaspi.println("BACKUP Parachute Deployed");
+          e32.sendMessage("BACUKUP parachue Deployed");
+          setState(RECOVERY);
+        }
+        else {
+          // pray
+        }
+      }
+    }
+
+    // send data
+     // pack data
+     String packed_data = packDATA(data);
+     // send the data to the raspberry pi
+     SerialRaspi.println(packed_data);
+     // send the data to Telemetry 
+     e32.sendMessage(packed_data);
   }
   
 
