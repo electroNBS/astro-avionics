@@ -32,7 +32,7 @@ E32Module e32(SerialE32);
 
 // define the status register bits
 #define RPI_h    (1 << 0) // is the raspberry pi alive
-#define GPS_h    (1 << 1) // is the gps alive
+#define GPS_h    (1 << 1) // is the gps on
 #define LORA_h   (1 << 2) // is the lora alive
 #define BMP_h    (1 << 3) // is the bmp alive
 #define IMU_h    (1 << 4) //is the imu alive
@@ -204,10 +204,6 @@ void loop() {
     // begin communication with the e32
     SerialE32.begin(115200, SERIAL_8N1, E32RX, E32TX);
 
-    // begin communication with GPS
-    SerialGPS.begin(115200, SERIAL_8N1, GPSRX, GPSTX);
-
-
     // connect to raspberry pi
     unsigned long start = millis();
     // this loop runs while the time is less than connect time , or  the raspberry pi and lora module are not connected
@@ -266,31 +262,38 @@ void loop() {
   while (state == IDLE) {
     // read the data from the sensors
     Data data;
+    data.time = millis();
     data.bmpAltitude = bmpSensor.getAltitude();
     data.pressure = bmpSensor.getPressure();
     data.imuAltitude = getHeightIMU();
-    data.accel_x = readIMU().accel_x;
-    data.accel_y = readIMU().accel_y;
-    data.accel_z = readIMU().accel_z;
+    IMUReading reading_i = readIMU();
+    data.accel_x = reading_i.accel_x;
+    data.accel_y = reading_i.accel_y;
+    data.accel_z = reading_i.accel_z;
     data.vel_imu = getVelocityIMU();
     data.vel_bmp = bmpSensor.getVelocity();
     checkAllEjectionChargeContinuity();
     data.statusReg = status;
     // TODO : read the data from the GPS
-
+    
+    // pack data
+    String packed_data = packDATA(data);
     // send the data to the raspberry pi
-    SerialRaspi.println(packDATA(data));
-    // send 
+    SerialRaspi.println(packed_data);
+    // send the data to Telemetry 
+    e32.sendMessage(packed_data);
     // check for commands from the raspberry pi
     if((BMP_h & status) && (bmpSensor.getAltitude()-groundAltitude>200) || (IMU_h & status) && (getHeightIMU()>200)){
         setState(FLIGHT);
     }
   }
   /*
-  In Flight Mode we 
+  In Flight Mode we only take check bmp altitude and imu Height , IMU tipover
+  and buffer that data , and send data
   */
   while(state == FLIGHT){
-    //TODO
+    // update Data 
+    
   }
 
 }
