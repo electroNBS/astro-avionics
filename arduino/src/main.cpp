@@ -167,13 +167,20 @@ void loop() {
     data.accel_z = readIMU().accel_z;
     data.vel_imu = getVelocityIMU();
     data.vel_bmp = bmpSensor.getVelocity();
-    // TODO : read the data from the IMU
+
     // TODO : read the data from the GPS
+
     // send the data to the raspberry pi
     SerialRaspi.println(packDATA(data));
     // send 
     // check for commands from the raspberry pi
-    
+    if((BMP_h & status) && (bmpSensor.getAltitude()-groundAltitude>200) || (IMU_h & status) && (getHeightIMU()>200)){
+      state = FLIGHT;
+    }
+  }
+
+  while(state == FLIGHT){
+    //TODO
   }
 
 }
