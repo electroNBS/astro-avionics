@@ -48,7 +48,8 @@ E32Module e32(SerialE32);
 #define S10_h    (1 << 11) // state bit 0
 #define S11h    (1 << 12) // state bit 1
 #define S12_h    (1 << 13) // state bit 2
-
+// is tip over detected is 14th bit
+#define TIP_OVER (1 << 14)
 // binary status register
 // 0b0000000000000000 
 // bit 0: raspberry pi status
@@ -59,6 +60,7 @@ E32Module e32(SerialE32);
 // bit 5 ,6 ,7: ejection charge continuity (drogue, main, backup) 
 // bit 8,9,10: ejection charge status (drogue, main, backup)
 // bit 11,12,13: state of the rocket
+// bit 14: TIP_OVER
 uint16_t status = 0b0000000000000000;
 // define ejection charge status register
 
@@ -121,6 +123,7 @@ State state = BOOT;
 
 // state variables
 float groundAltitude = 0;
+unsigned long timeof_tip_over = 0;
 
 // full data struct
 struct Data {
@@ -176,6 +179,29 @@ void checkAllEjectionChargeContinuity(bool force = false){
     status &= !ECd_h;
 
   }
+}
+
+/*
+we keep the averaging the ax , ay , az with the readings we recive, and if there is more than 40% change, we return 1;
+we ignore change in first 10 readings
+*/
+int checkTipOver(float ax,float ay , float az){
+  static float aax = 0, aay=0, aaz =0;
+  static unsigned long count = 0;
+  if (count>10){
+    // check if anything has changed more then 30% from average
+    float dx = abs((aax-ax)/aax) , dy  = abs((aay - ay)/aay) , dz = abs((aaz-az)/aaz);
+    if (dx > 0.3 || dy >0.3||dx >0.3)
+    {
+      return 1;
+    }
+  }
+  // updating averages
+   aax = (count == 0) ? ax : (aax * count + ax) / (count + 1);
+   aay = (count == 0) ? ay : (aay * count + ay) / (count + 1);
+   aaz = (count == 0) ? az : (aaz * count + az) / (count + 1);
+
+   count++; // increment count
 }
 
 void setup() {
@@ -282,7 +308,6 @@ void loop() {
     SerialRaspi.println(packed_data);
     // send the data to Telemetry 
     e32.sendMessage(packed_data);
-    // check for commands from the raspberry pi
     if((BMP_h & status) && (bmpSensor.getAltitude()-groundAltitude>200) || (IMU_h & status) && (getHeightIMU()>200)){
         setState(FLIGHT);
     }
@@ -293,7 +318,46 @@ void loop() {
   */
   while(state == FLIGHT){
     // update Data 
+    // read the data from the sensors
+    Data data;
+    data.time = millis();
+    data.bmpAltitude = bmpSensor.getAltitude();
+    data.pressure = bmpSensor.getPressure();
+    data.imuAltitude = getHeightIMU();
+    IMUReading reading_i = readIMU();
+    data.accel_x = reading_i.accel_x;
+    data.accel_y = reading_i.accel_y;
+    data.accel_z = reading_i.accel_z;
+    data.vel_imu = getVelocityIMU();
+    data.vel_bmp = bmpSensor.getVelocity();
+    checkAllEjectionChargeContinuity();
+    data.statusReg = status;
+    // TODO : read the data from the GPS
     
+    // pack data
+    String packed_data = packDATA(data);
+    // send the data to the raspberry pi
+    SerialRaspi.println(packed_data);
+    // send the data to Telemetry 
+    e32.sendMessage(packed_data);
+    // TODO : if imu not working , do other thing to enter drouge mode
+    if(checkTipOver(data.accel_x,data.accel_y,data.accel_z)){
+      status |= TIP_OVER;
+      timeof_tip_over = millis();
+      // send tip over message to raspi
+      SerialRaspi.println("TIP OVER");
+      e32.sendMessage("TIP OVER");
+      SerialRaspi.println(timeof_tip_over);
+      // update continutity status to make things ready for drouge 
+      checkAllEjectionChargeContinuity(true);
+      setState(DROUGE);
+    }
   }
+  while (state == DROUGE)
+  {
+    // wait for half second after tip over , and deoply drouge.
+   
+  }
+  
 
 }
