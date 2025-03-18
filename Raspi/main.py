@@ -8,8 +8,9 @@ import board
 import busio
 import adafruit_bmp3xx
 import RPi.GPIO as GPIO
-# pip install adafruit-circuitpython-bmp3xx aioserial Rpi.GPIO
+# pip install aioserial Rpi.GPIO adafruit-circuitpython-bmp3xx
 # enable i2c and serial in raspi config
+# https://www.waveshare.com/wiki/BMP390_Barometric_Pressure_Sensor
 
 # define log directory
 log_dir = os.path.expanduser("~/flightlogs")
@@ -17,16 +18,17 @@ os.makedirs(log_dir, exist_ok=True)  # Ensure the directory exists
 
 # bmp init
 i2c = busio.I2C(board.SCL, board.SDA)
-bmp = adafruit_bmp3xx.BMP3xx_I2C(i2c, address=0x77) # install i2c tools and verify address with $ i2cdetect -y 1
+bmp = adafruit_bmp3xx.BMP3XX_I2C(i2c, address=0x77) # install i2c tools and verify address with $ i2cdetect -y 1
 #bmp.pressure_oversampling = 8
 #bmp.temperature_oversampling = 4
-bmp.sea_level_pressure = 1007 # Set this before flight!
+bmp.sea_level_pressure = 1012 # Set this before flight!
 
 # constants
 FLIGHT_LOG = os.path.join(log_dir, time.strftime("flight_%H%M%S.log"))
 BMP_LOG = os.path.join(log_dir, time.strftime("bmp_%H%M%S.log"))
 TIMEOUT = 20
 SERIAL_PORT = "/dev/serial0"
+HIGH_RES_VEL = 30  # Ask garg
 BAUD_RATE = 115200
 DROGUE_PIN = 27
 MAIN_PIN = 17
@@ -46,7 +48,7 @@ GPIO.setup(STATUS, GPIO.OUT, initial=GPIO.LOW)
 GPIO.setup(TEL, GPIO.OUT, initial=GPIO.LOW)
 
 # global variables
-ard_status = True
+arduino_status = True
 vel_logging = True
 flight_buffer = []
 vel_buffer = []
@@ -105,6 +107,34 @@ async def stop_recording():
     else:
         await flight_log("ERROR: stop_recording.sh not found!")
 
+async def high_res_start():
+    script_path = "/home/pi/high_res_start.sh"
+    if os.path.exists(script_path):
+        subprocess.run(["bash", script_path])
+    else:
+        await flight_log("ERROR: high_res_start.sh not found!")
+
+async def high_res_stop():
+    script_path = "/home/pi/high_res_stop.sh"
+    if os.path.exists(script_path):
+        subprocess.run(["bash", script_path])
+    else:
+        await flight_log("ERROR: high_res_stop.sh not found!")
+
+async def high_res_video():
+    while height < 200:
+        await asyncio.sleep(1)
+    while velocity > HIGH_RES_VEL:
+        await asyncio.sleep(0.005)
+    if arduino_status:
+        await stop_recording()
+    await high_res_start()
+    while velocity > -HIGH_RES_VEL:
+        await asyncio.sleep(0.005)
+    await high_res_stop()
+    if arduino_status:
+        await start_recording()
+
 async def deploy_drogue():
     GPIO.output(DROGUE_PIN, GPIO.HIGH)
     await asyncio.sleep(2)
@@ -119,7 +149,7 @@ async def deploy_main():
 
 async def read_serial(aios):
     global last_packet_time
-    while ard_status:
+    while arduino_status:
         try:
             data = await aios.readline_async()
             if not data:
@@ -143,12 +173,12 @@ async def read_serial(aios):
             await asyncio.sleep(0.5)
 
 async def check_failure():
-    global last_packet_time, ard_status
+    global last_packet_time, arduino_status
     while True:
         if time.monotonic() - last_packet_time > TIMEOUT:
             await flight_log("ERROR: Arduino timed out! Switching to failure mode.")
             await stop_recording()
-            ard_status = False
+            arduino_status = False
             return
         await asyncio.sleep(1)  # Check every second
 
@@ -224,8 +254,8 @@ async def main():
     GPIO.output(TEL, GPIO.HIGH)
     await start_recording()
     aios = aioserial.AioSerial(port=SERIAL_PORT, baudrate=BAUD_RATE, timeout=1)
-    asyncio.create_task(update_vel())
-    await asyncio.gather(read_serial(aios), check_failure()) # make sure this function returns if ard_status is false
+    asyncio.gather(update_vel(), high_res_video())
+    await asyncio.gather(read_serial(aios), check_failure()) # make sure this function returns if arduino_status is false
     
     # Failure mode
     await flight_log("Entered failure mode.")
