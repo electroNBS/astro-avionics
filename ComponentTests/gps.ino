@@ -1,67 +1,92 @@
-#include <SoftwareSerial.h>
+#define GPS_RX 1  // GPS Module RX pin
+#define GPS_TX 0  // GPS Module TX pin
 
-int D1,D0;
+#include <Arduino.h>
 
+HardwareSerial GPS_Serial(3);  // Serial2 for GPS
 
-// Define GPS TX and RX pins
-const int gps_RX = D1;  // GPS TX pin connected to Arduino RX 
-const int gps_TX = D0;  // GPS RX pin connected to Arduino TX 
-
-// Create a SoftwareSerial object for GPS communication
-SoftwareSerial gpsSerial(gps_RX, gps_TX);
-
-// Structure to store parsed GPS data
 struct GPSData {
     double latitude;
+    char latDir;
     double longitude;
-    bool isValid;
+    char lonDir;
 };
 
-// Function to read and parse GPS data
+// Initialize GPS
+void initGPS() {
+    GPS_Serial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
+}
+
+// Convert NMEA format to decimal degrees
+double convertToDecimalDegrees(const char *nmea, char direction) {
+    double raw = atof(nmea);
+    int degrees = (int)(raw / 100);
+    double minutes = raw - (degrees * 100);
+    double decimalDegrees = degrees + (minutes / 60.0);
+    if (direction == 'S' || direction == 'W') decimalDegrees *= -1;
+    return decimalDegrees;
+}
+
+// Read and extract GPS data
 GPSData readGPS() {
-    GPSData data = {0.0, 0.0, false};  // Initialize with default values
+    GPSData data = {0.0, 'N', 0.0, 'E'};
+    char buffer[100];
+    int index = 0;
+    bool reading = false;
 
-    // Read a line of data from the GPS module
-    if (gpsSerial.available()) {
-        String rawData = gpsSerial.readStringUntil('\n');  // Read until newline
+    while (GPS_Serial.available()) {
+        char c = GPS_Serial.read();
+        Serial.print(c);  // Debugging raw data
 
-        // Simulate parsing (replace this with actual parsing logic if needed)
-        // Example: Assume raw data is in the format "latitude,longitude"
-        int commaIndex = rawData.indexOf(',');  // Find the comma separator
-        if (commaIndex > 0) {
-            data.latitude = rawData.substring(0, commaIndex).toDouble();  // Extract latitude
-            data.longitude = rawData.substring(commaIndex + 1).toDouble();  // Extract longitude
-            data.isValid = true;  // Mark data as valid
+        if (c == '$') { reading = true; index = 0; }
+        if (reading) {
+            buffer[index++] = c;
+            if (c == '\n' || index >= 99) {
+                buffer[index] = '\0';
+                reading = false;
+
+                if (strstr(buffer, "$GNGGA") || strstr(buffer, "$GNRMC")) {
+                    char *token = strtok(buffer, ",");
+                    int field = 0;
+
+                    while (token != NULL) {
+                        field++;
+                        if (field == 3) data.latitude = convertToDecimalDegrees(token, 'N');
+                        if (field == 4) data.latDir = token[0];
+                        if (field == 5) data.longitude = convertToDecimalDegrees(token, 'E');
+                        if (field == 6) data.lonDir = token[0];
+                        token = strtok(NULL, ",");
+                    }
+                    break;
+                }
+            }
         }
     }
-
     return data;
 }
 
 void setup() {
-    // Start serial communication for debugging
     Serial.begin(115200);
-
-    // Start GPS serial communication
-    gpsSerial.begin(9600);
-
-    Serial.println("Initializing GPS...");
+    initGPS();
+    Serial.println("L86 GPS Module Initialized...");
 }
 
 void loop() {
-    // Read and parse GPS data
-    GPSData data = readGPS();
+    GPSData reading = readGPS();
 
-    // Check if GPS data is valid and print it
-    if (data.isValid) {
+    if (reading.latitude != 0.0 && reading.longitude != 0.0) {
         Serial.print("Latitude: ");
-        Serial.println(data.latitude, 6);  // Print latitude with 6 decimal places
+        Serial.print(reading.latitude, 6);
+        Serial.print(" ");
+        Serial.println(reading.latDir);
+
         Serial.print("Longitude: ");
-        Serial.println(data.longitude, 6); // Print longitude with 6 decimal places
+        Serial.print(reading.longitude, 6);
+        Serial.print(" ");
+        Serial.println(reading.lonDir);
     } else {
-        Serial.println("No valid GPS data available.");
+        Serial.println("Waiting for GPS fix...");
     }
 
-    // Wait for 1 second before the next reading
     delay(1000);
 }
