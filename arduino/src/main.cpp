@@ -421,11 +421,38 @@ void loop() {
      SerialRaspi.println(packed_data);
      // send the data to Telemetry 
      e32.sendMessage(packed_data);
+
+     // delay 1 sec if vel is <safe Parachute vel
+     if(data.vel_bmp<SAFE_PARACHUTE_VEL){
+      delay(1000);
+     } 
   }
   while (state== RECOVERY)
   {
-    
-    // we keep sending data , 
+    Data data = updateDataWithoutGPS();
+     // read gps 
+     GPSData gps_d = readGPSData();
+
+     // pack data
+     String packed_data = packDATA(data) + packGPSDATA(gps_d);
+     // send the data to the raspberry pi
+     SerialRaspi.println(packed_data);
+     // send the data to Telemetry 
+     e32.sendMessage(packed_data);
+
+
+     if(data.vel_bmp<SAFE_PARACHUTE_VEL){
+      delay(1000);
+     } 
+
+     //check if altitute is within 10 m of base altitude , we start beeping buzzer
+     if (data.bmpAltitude - groundAltitude <10) {
+        pinMode(BuzzerPin,HIGH);
+        delay(500);
+        pinMode(BuzzerPin,LOW);
+        delay(500);
+     }
+     // do other things if vel is high
   }
   
 
