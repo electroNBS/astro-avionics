@@ -124,6 +124,7 @@ float groundAltitude = 0;
 
 // full data struct
 struct Data {
+  unsigned long time;
   float bmpAltitude;
   float imuAltitude;
   float pressure;
@@ -143,6 +144,38 @@ String packDATA(Data data){
     binaryStatus += String((data.statusReg >> i) & 1);
   }
   return "DATA:" + String(data.bmpAltitude) + "," + String(data.imuAltitude) + "," + String(data.pressure) + "," + String(data.latitude) + "," + String(data.longitude) + "," + String(data.accel_x) + "," + String(data.accel_y) + "," + String(data.accel_z) + "," + String(data.vel_bmp) + "," + String(data.vel_imu) + "," + binaryStatus;
+}
+
+// checks all ejection charge continuity and updates status
+// checks only once 200 time it is called or force is true , resets counter when force is called
+// takes 10*3 ms to execute
+void checkAllEjectionChargeContinuity(bool force = false){
+  static int count = 0;
+  if (count<200&& !force){
+    count ++ ;
+    return;
+  }else{
+    count = 0;
+  }
+  if (checkMainEjectionCharges()){
+    status |= ECm_h;
+  }else {
+    status &= !ECm_h;
+  }
+  if (checkBackupEjectionCharges()){
+    status |= ECb_h;
+  }
+  else {
+    status &= !ECb_h;
+
+  }
+  if (checkDrogueEjectionCharges()){
+    status |= ECd_h;
+  }
+  else {
+    status &= !ECd_h;
+
+  }
 }
 
 void setup() {
@@ -222,6 +255,9 @@ void loop() {
     
     // IMU will take 500 samples to calibrate , each 5ms , total 2.5 seconds
     calibrateIMU(500); 
+
+    // we also check ejection Charge Continutity
+    checkAllEjectionChargeContinuity(true);
     // play a tone to indicate that the calibration is done
     playCalibrationStartTone(); // takes 1 second
 
@@ -238,6 +274,7 @@ void loop() {
     data.accel_z = readIMU().accel_z;
     data.vel_imu = getVelocityIMU();
     data.vel_bmp = bmpSensor.getVelocity();
+    checkAllEjectionChargeContinuity();
     data.statusReg = status;
     // TODO : read the data from the GPS
 
@@ -249,7 +286,9 @@ void loop() {
         setState(FLIGHT);
     }
   }
-
+  /*
+  In Flight Mode we 
+  */
   while(state == FLIGHT){
     //TODO
   }
