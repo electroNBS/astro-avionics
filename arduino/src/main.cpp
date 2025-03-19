@@ -26,9 +26,12 @@ BMPSensor bmpSensor(BMP_SDA, BMP_SCL);
 #define SAFE_PARACHUTE_VEL 2 // safe velocity below which we can deoply parachute
 
 // Define serial ports
-HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
-HardwareSerial SerialRaspi(2); // Use UART2 (A6 RX, A7 TX)
-HardwareSerial SerialGPS(3); //Use UART3 (D0 TX, D1 RX)
+//HardwareSerial SerialE32(1);   // Use UART1 (A3 RX, A2 TX)
+#define SerialE32 Serial1
+#define SerialRaspi Serial2
+//HardwareSerial SerialRaspi(2); // Use UART2 (A6 RX, A7 TX)
+//HardwareSerial SerialGPS(3); //Use UART3 (D0 TX, D1 RX)
+#define SerialGPS Serial0
 E32Module e32(SerialE32);
 
 
